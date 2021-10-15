@@ -14,7 +14,7 @@ from os.path import expanduser
 from pulsectl import Pulse
 
 
-class nano_keys(Enum):
+class default_keys(Enum):
     TRACK_PREV = 58
     TRACK_NEXT = 59
     CYCLE = 46
@@ -34,6 +34,14 @@ class nano_keys(Enum):
     PARAM6_SOLO = 37
     PARAM7_SOLO = 38
     PARAM8_SOLO = 39
+    # PARAM1_MUTE = 72
+    # PARAM2_MUTE = 73
+    # PARAM3_MUTE = 74
+    # PARAM4_MUTE = 75
+    # PARAM5_MUTE = 76
+    # PARAM6_MUTE = 77
+    # PARAM7_MUTE = 78
+    # PARAM8_MUTE = 79
     PARAM1_MUTE = 48
     PARAM2_MUTE = 49
     PARAM3_MUTE = 50
@@ -67,62 +75,20 @@ class nano_keys(Enum):
     PARAM7_KNOB = 22
     PARAM8_KNOB = 23
 
-    led_support = [
-        TRACK_PREV,
-        TRACK_NEXT,
-        CYCLE,
-        MARKER_SET,
-        MARKER_PREV,
-        MARKER_NEXT,
-        PREV,
-        NEXT,
-        STOP,
-        PLAY,
-        RECORD,
-        PARAM1_SOLO,
-        PARAM2_SOLO,
-        PARAM3_SOLO,
-        PARAM4_SOLO,
-        PARAM5_SOLO,
-        PARAM6_SOLO,
-        PARAM7_SOLO,
-        PARAM8_SOLO,
-        PARAM1_MUTE,
-        PARAM2_MUTE,
-        PARAM3_MUTE,
-        PARAM4_MUTE,
-        PARAM5_MUTE,
-        PARAM6_MUTE,
-        PARAM7_MUTE,
-        PARAM8_MUTE,
-        PARAM1_RECORD,
-        PARAM2_RECORD,
-        PARAM3_RECORD,
-        PARAM4_RECORD,
-        PARAM5_RECORD,
-        PARAM6_RECORD,
-        PARAM7_RECORD,
-        PARAM8_RECORD
-    ]
-
 
 class nano_led_handler(object):
     def __init__(self, port=None):
         self.port = port
 
     def set_led(self, led=None, value=None):
-        if led in nano_keys.led_support.value:
-            logging.debug(
-                'nano_led_handler::set: Setting led {} to {}'.format(led, value))
-            if value > 0:
-                value = 127
-            else:
-                value = 0
-            self.port.send(mido.Message(
-                'control_change', control=led, value=value))
+        logging.debug(
+            'nano_led_handler::set: Setting led {} to {}'.format(led, value))
+        if value > 0:
+            value = 127
         else:
-            logging.debug(
-                'nano_led_handler::set: Key {} has no led to set'.format(led))
+            value = 0
+        self.port.send(mido.Message(
+            'control_change', control=led, value=value))
 
 
 class nano_action(object):
@@ -209,6 +175,14 @@ def get_audio_devices(pactl, sources={}, sinks={}):
     return audio_devices
 
 
+def is_float(value):
+    try:
+        float(value)
+        return True
+    except:
+        return False
+
+
 def parse_config(config_path, pactl, evdev, uinput, midi_out):
     action_map = {}
     led_handler = nano_led_handler(port=midi_out)
@@ -241,11 +215,14 @@ def parse_config(config_path, pactl, evdev, uinput, midi_out):
 
     # Create action objects for each key
     for keyname in config_object.options('keymap'):
-        try:
-            keycode = nano_keys[keyname].value
-        except:
-            logging.warn('parse_config: No such key {}'.format(keyname))
-            continue
+        if is_float(keyname):
+            try:
+                keycode = float(keyname)
+            except:
+                logging.warn('parse_config: No such key {}'.format(keyname))
+                continue
+        else:
+            keycode = default_keys[keyname].value
 
         actions = config_object.get('keymap', keyname).split('/', 1)
 
